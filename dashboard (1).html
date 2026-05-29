@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElectroMonitor — Smart Meter Fraud Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#04080f;--surface:#080f1a;--card:#0b1622;--border:#112233;--accent:#00c8ff;--green:#00e87a;--red:#ff3b5c;--amber:#ffaa00;--muted:#334455;--text:#adc8d8;--white:#e8f4ff;}
+*{margin:0;padding:0;box-sizing:border-box;}html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh;overflow-x:hidden;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:9999;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.025) 1px,transparent 1px);background-size:50px 50px;pointer-events:none;z-index:0;}
+.app{position:relative;z-index:1;}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;}
+.sidebar-logo{padding:24px 20px 20px;border-bottom:1px solid var(--border);}
+.logo-mark{display:flex;align-items:center;gap:12px;margin-bottom:4px;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,#00c8ff22,#00c8ff44);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 20px rgba(0,200,255,0.2);}
+.logo-text{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:var(--white);letter-spacing:1px;}
+.logo-sub{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:2px;padding-left:50px;}
+.sidebar-section{padding:16px 12px 8px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
+.meter-list{flex:1;overflow-y:auto;padding:0 8px;}
+.meter-list::-webkit-scrollbar{width:3px;}
+.meter-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.meter-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;margin-bottom:4px;border:1px solid transparent;transition:all 0.2s ease;}
+.meter-item:hover{background:rgba(0,200,255,0.05);border-color:var(--border);}
+.meter-item.active{background:rgba(0,200,255,0.08);border-color:rgba(0,200,255,0.3);}
+.meter-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;transition:all 0.3s;}
+.meter-dot.normal{background:var(--green);box-shadow:0 0 8px var(--green);}
+.meter-dot.fraud{background:var(--red);box-shadow:0 0 8px var(--red);animation:dot-pulse 0.8s infinite;}
+.meter-dot.no-power{background:var(--muted);}
+.meter-dot.loading{background:var(--accent);animation:dot-pulse 1.5s infinite;}
+@keyframes dot-pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.meter-info{flex:1;min-width:0;}
+.meter-id{font-size:13px;font-weight:700;color:var(--white);letter-spacing:0.5px;}
+.meter-addr{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.meter-badge{font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:3px;flex-shrink:0;}
+.meter-badge.normal{background:rgba(0,232,122,0.15);color:var(--green);}
+.meter-badge.fraud{background:rgba(255,59,92,0.15);color:var(--red);}
+.meter-badge.no-power{background:rgba(51,68,85,0.3);color:var(--muted);}
+.meter-badge.loading{background:rgba(0,200,255,0.1);color:var(--accent);}
+.sidebar-footer{padding:16px 12px;border-top:1px solid var(--border);}
+.btn-add-meter{width:100%;background:linear-gradient(135deg,rgba(0,200,255,0.1),rgba(0,200,255,0.05));border:1px dashed rgba(0,200,255,0.4);color:var(--accent);border-radius:8px;padding:10px;cursor:pointer;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;}
+.btn-add-meter:hover{background:rgba(0,200,255,0.12);border-style:solid;}
+.main{margin-left:260px;min-height:100vh;}
+.topbar{position:sticky;top:0;z-index:50;background:rgba(4,8,15,0.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;}
+.topbar-left{display:flex;align-items:center;gap:16px;}
+.page-title{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--white);letter-spacing:2px;}
+.breadcrumb{font-size:12px;color:var(--muted);letter-spacing:1px;}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.live-pill{display:flex;align-items:center;gap:7px;background:rgba(0,232,122,0.08);border:1px solid rgba(0,232,122,0.2);border-radius:20px;padding:5px 12px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:dot-pulse 1s infinite;}
+.clock-display{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);}
+.btn-config{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:'Exo 2',sans-serif;font-size:12px;letter-spacing:1px;transition:all 0.2s;}
+.btn-config:hover{border-color:var(--accent);color:var(--accent);}
+.page{display:none;padding:28px;}
+.page.active{display:block;}
+.overview-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;}
+.overview-title{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:var(--white);letter-spacing:2px;}
+.overview-sub{font-size:13px;color:var(--muted);margin-top:6px;letter-spacing:1px;}
+.summary-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+.summary-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;}
+.summary-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.summary-card.total::before{background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.summary-card.safe::before{background:linear-gradient(90deg,transparent,var(--green),transparent);}
+.summary-card.danger::before{background:linear-gradient(90deg,transparent,var(--red),transparent);}
+.summary-card.offline::before{background:linear-gradient(90deg,transparent,var(--muted),transparent);}
+.summary-val{font-family:'Orbitron',monospace;font-size:32px;font-weight:900;color:var(--white);}
+.summary-card.safe .summary-val{color:var(--green);}
+.summary-card.danger .summary-val{color:var(--red);}
+.summary-lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px;}
+.meter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+.meter-card{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:all 0.25s ease;}
+.meter-card:hover{border-color:rgba(0,200,255,0.4);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+.meter-card.fraud-card{border-color:rgba(255,59,92,0.5);animation:card-fraud 1s ease-in-out infinite;}
+@keyframes card-fraud{0%,100%{box-shadow:0 0 0 rgba(255,59,92,0);}50%{box-shadow:0 0 24px rgba(255,59,92,0.3);}}
+.card-top{padding:18px 20px 14px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);}
+.card-meter-id{font-family:'Orbitron',monospace;font-size:14px;font-weight:700;color:var(--white);letter-spacing:1px;}
+.card-address{font-size:12px;color:var(--muted);margin-top:3px;}
+.card-status-badge{padding:5px 10px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;}
+.card-status-badge.normal{background:rgba(0,232,122,0.12);color:var(--green);border:1px solid rgba(0,232,122,0.3);}
+.card-status-badge.fraud{background:rgba(255,59,92,0.12);color:var(--red);border:1px solid rgba(255,59,92,0.4);}
+.card-status-badge.no-power{background:rgba(51,68,85,0.2);color:var(--muted);border:1px solid var(--border);}
+.card-status-badge.loading{background:rgba(0,200,255,0.08);color:var(--accent);border:1px solid rgba(0,200,255,0.2);}
+.card-metrics{padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.card-metric-val{font-family:'Share Tech Mono',monospace;font-size:18px;color:var(--white);}
+.card-metric-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:3px;}
+.card-footer{padding:10px 20px;background:rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:space-between;}
+.card-footer-left{font-size:11px;color:var(--muted);font-family:'Share Tech Mono',monospace;}
+.card-view-btn{font-size:11px;color:var(--accent);letter-spacing:1px;font-weight:600;text-transform:uppercase;}
+.detail-header{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+.btn-back{background:transparent;border:1px solid var(--border);color:var(--muted);padding:8px 14px;border-radius:6px;cursor:pointer;font-family:'Exo 2',sans-serif;font-size:13px;transition:all 0.2s;display:flex;align-items:center;gap:6px;}
+.btn-back:hover{border-color:var(--accent);color:var(--accent);}
+.detail-meter-id{font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--white);letter-spacing:2px;}
+.detail-address{font-size:13px;color:var(--muted);margin-top:4px;letter-spacing:1px;}
+.detail-banner{border-radius:12px;padding:24px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;border:2px solid;transition:all 0.4s;position:relative;overflow:hidden;}
+.detail-banner::before{content:'';position:absolute;inset:0;opacity:0.04;background:repeating-linear-gradient(45deg,currentColor,currentColor 1px,transparent 1px,transparent 12px);}
+.detail-banner.normal{background:rgba(0,232,122,0.06);border-color:rgba(0,232,122,0.4);color:var(--green);}
+.detail-banner.fraud{background:rgba(255,59,92,0.08);border-color:rgba(255,59,92,0.5);color:var(--red);animation:banner-fraud 0.8s ease-in-out infinite;}
+.detail-banner.no-power{background:rgba(51,68,85,0.1);border-color:rgba(51,68,85,0.4);color:var(--muted);}
+.detail-banner.loading{background:rgba(0,200,255,0.04);border-color:rgba(0,200,255,0.2);color:var(--accent);}
+@keyframes banner-fraud{0%,100%{box-shadow:0 0 20px rgba(255,59,92,0.1);}50%{box-shadow:0 0 50px rgba(255,59,92,0.4);}}
+.banner-left{display:flex;align-items:center;gap:18px;}
+.banner-icon{font-size:44px;line-height:1;}
+.banner-status{font-family:'Orbitron',monospace;font-size:28px;font-weight:900;letter-spacing:3px;}
+.banner-desc{font-size:13px;opacity:0.7;margin-top:4px;letter-spacing:1px;}
+.banner-right{text-align:right;}
+.banner-conf{font-family:'Orbitron',monospace;font-size:38px;font-weight:900;line-height:1;}
+.banner-conf-lbl{font-size:11px;opacity:0.6;letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+.detail-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;}
+.d-metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;position:relative;overflow:hidden;}
+.d-metric::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.d-metric:nth-child(1)::after{background:linear-gradient(90deg,transparent,#ffaa00,transparent);}
+.d-metric:nth-child(2)::after{background:linear-gradient(90deg,transparent,#00c8ff,transparent);}
+.d-metric:nth-child(3)::after{background:linear-gradient(90deg,transparent,#00e87a,transparent);}
+.d-metric-lbl{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.d-metric-val{font-family:'Orbitron',monospace;font-size:32px;font-weight:700;color:var(--white);line-height:1;}
+.d-metric-unit{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--muted);margin-left:4px;}
+.d-metric-bar{margin-top:12px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.d-metric-fill{height:100%;border-radius:2px;transition:width 0.8s ease;}
+.d-metric:nth-child(1) .d-metric-fill{background:#ffaa00;}
+.d-metric:nth-child(2) .d-metric-fill{background:#00c8ff;}
+.d-metric:nth-child(3) .d-metric-fill{background:#00e87a;}
+.detail-grid{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:16px;}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;}
+.panel-hdr{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.panel-hdr::after{content:'';flex:1;height:1px;background:var(--border);}
+.chart-wrap{position:relative;height:220px;}
+.alert-scroll{max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;}
+.alert-scroll::-webkit-scrollbar{width:3px;}
+.alert-scroll::-webkit-scrollbar-thumb{background:var(--border);}
+.alert-row{padding:9px 12px;border-radius:6px;border-left:3px solid;display:flex;align-items:flex-start;gap:10px;animation:slide-in 0.3s ease;}
+@keyframes slide-in{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+.alert-row.normal{border-color:var(--green);background:rgba(0,232,122,0.04);}
+.alert-row.fraud{border-color:var(--red);background:rgba(255,59,92,0.06);}
+.alert-row.no-power{border-color:var(--muted);background:rgba(51,68,85,0.06);}
+.alert-ico{font-size:15px;margin-top:1px;}
+.alert-status{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--white);}
+.alert-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px;}
+.no-data{text-align:center;color:var(--muted);font-size:12px;padding:32px 0;letter-spacing:1px;}
+.session-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center;}
+.stat-val{font-family:'Orbitron',monospace;font-size:20px;font-weight:700;color:var(--white);}
+.stat-card.s-safe .stat-val{color:var(--green);}
+.stat-card.s-danger .stat-val{color:var(--red);}
+.stat-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:5px;}
+.btn-export{background:linear-gradient(135deg,rgba(0,200,255,0.1),rgba(0,200,255,0.05));border:1px solid rgba(0,200,255,0.3);color:var(--accent);padding:8px 18px;border-radius:6px;cursor:pointer;font-family:'Exo 2',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;transition:all 0.2s;display:flex;align-items:center;gap:8px;}
+.btn-export:hover{background:rgba(0,200,255,0.15);border-color:var(--accent);}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:#080f1a;border:1px solid var(--border);border-radius:14px;padding:32px;width:500px;max-width:90vw;animation:modal-in 0.2s ease;}
+@keyframes modal-in{from{opacity:0;transform:scale(0.96);}to{opacity:1;transform:scale(1);}}
+.modal-title{font-family:'Orbitron',monospace;font-size:14px;letter-spacing:2px;color:var(--white);margin-bottom:24px;}
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.form-group input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--white);font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;transition:border-color 0.2s;}
+.form-group input:focus{border-color:var(--accent);}
+.modal-btns{display:flex;gap:10px;margin-top:24px;}
+.btn-primary{flex:1;background:var(--accent);color:#000;border:none;border-radius:6px;padding:12px;font-family:'Exo 2',sans-serif;font-weight:700;font-size:13px;letter-spacing:2px;cursor:pointer;transition:opacity 0.2s;}
+.btn-primary:hover{opacity:0.85;}
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:12px 20px;font-family:'Exo 2',sans-serif;font-size:13px;cursor:pointer;}
+.fraud-timer{background:rgba(255,59,92,0.08);border:1px solid rgba(255,59,92,0.3);border-radius:8px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;font-family:'Share Tech Mono',monospace;}
+.fraud-timer.hidden{display:none;}
+.timer-label{font-size:12px;color:var(--red);letter-spacing:2px;}
+.timer-value{font-size:20px;color:var(--red);font-weight:700;margin-left:auto;}
+@media(max-width:900px){.sidebar{display:none;}.main{margin-left:0;}.detail-grid{grid-template-columns:1fr;}.detail-metrics{grid-template-columns:1fr;}.summary-bar{grid-template-columns:repeat(2,1fr);}.session-stats{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="app">
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">ELECTROMONITOR</div>
+    </div>
+    <div class="logo-sub">Fraud Detection System</div>
+  </div>
+  <div class="sidebar-section">Registered Meters</div>
+  <div class="meter-list" id="meterList"></div>
+  <div class="sidebar-footer">
+    <button class="btn-add-meter" onclick="openAddMeter()">＋ Add New Meter</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div>
+        <div class="page-title" id="pageTitle">OVERVIEW</div>
+        <div class="breadcrumb" id="breadcrumb">All Meters</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+      <div class="clock-display" id="clock">--:--:--</div>
+      <button class="btn-config" onclick="openConfig()">⚙ Config</button>
+    </div>
+  </div>
+
+  <!-- OVERVIEW PAGE -->
+  <div class="page active" id="overviewPage">
+    <div class="overview-header">
+      <div>
+        <div class="overview-title">METER OVERVIEW</div>
+        <div class="overview-sub">Real-time status of all registered meters — ElectroMonitor v1.0</div>
+      </div>
+      <button class="btn-export" onclick="exportAllCSV()">⬇ Export All Reports</button>
+    </div>
+    <div class="summary-bar">
+      <div class="summary-card total"><div class="summary-val" id="sumTotal">0</div><div class="summary-lbl">Total Meters</div></div>
+      <div class="summary-card safe"><div class="summary-val" id="sumNormal">0</div><div class="summary-lbl">Normal</div></div>
+      <div class="summary-card danger"><div class="summary-val" id="sumFraud">0</div><div class="summary-lbl">Fraud Detected</div></div>
+      <div class="summary-card offline"><div class="summary-val" id="sumOffline">0</div><div class="summary-lbl">No Power</div></div>
+    </div>
+    <div class="meter-grid" id="meterGrid"></div>
+  </div>
+
+  <!-- DETAIL PAGE -->
+  <div class="page" id="detailPage">
+    <div class="detail-header">
+      <button class="btn-back" onclick="showOverview()">← Back</button>
+      <div>
+        <div class="detail-meter-id" id="detailMeterId">--</div>
+        <div class="detail-address" id="detailAddress">--</div>
+      </div>
+      <button class="btn-export" style="margin-left:auto" onclick="exportMeterCSV()">⬇ Export Report</button>
+    </div>
+
+    <div class="fraud-timer hidden" id="fraudTimer">
+      <span class="timer-label">⚠ FRAUD ACTIVE — DURATION</span>
+      <span class="timer-value" id="timerVal">00:00</span>
+    </div>
+
+    <div class="detail-banner loading" id="detailBanner">
+      <div class="banner-left">
+        <div class="banner-icon" id="detailIcon">⏳</div>
+        <div>
+          <div class="banner-status" id="detailStatus">CONNECTING</div>
+          <div class="banner-desc" id="detailDesc">Fetching live data...</div>
+        </div>
+      </div>
+      <div class="banner-right">
+        <div class="banner-conf" id="detailConf">--%</div>
+        <div class="banner-conf-lbl">ML Confidence</div>
+      </div>
+    </div>
+
+    <div class="detail-metrics">
+      <div class="d-metric">
+        <div class="d-metric-lbl">Voltage</div>
+        <div><span class="d-metric-val" id="dVolt">--</span><span class="d-metric-unit">V</span></div>
+        <div class="d-metric-bar"><div class="d-metric-fill" id="dVoltBar" style="width:0%"></div></div>
+      </div>
+      <div class="d-metric">
+        <div class="d-metric-lbl">Current</div>
+        <div><span class="d-metric-val" id="dCurr">--</span><span class="d-metric-unit">A</span></div>
+        <div class="d-metric-bar"><div class="d-metric-fill" id="dCurrBar" style="width:0%"></div></div>
+      </div>
+      <div class="d-metric">
+        <div class="d-metric-lbl">Power</div>
+        <div><span class="d-metric-val" id="dPow">--</span><span class="d-metric-unit">W</span></div>
+        <div class="d-metric-bar"><div class="d-metric-fill" id="dPowBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="panel">
+        <div class="panel-hdr">Live Readings — Last 20 Samples</div>
+        <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr">Alert Log</div>
+        <div class="alert-scroll" id="detailAlerts"><div class="no-data">No events recorded yet</div></div>
+      </div>
+    </div>
+
+    <div class="session-stats">
+      <div class="stat-card s-safe"><div class="stat-val" id="dNormal">0</div><div class="stat-lbl">Normal Readings</div></div>
+      <div class="stat-card s-danger"><div class="stat-val" id="dFraud">0</div><div class="stat-lbl">Fraud Events</div></div>
+      <div class="stat-card"><div class="stat-val" id="dTotal">0</div><div class="stat-lbl">Total Readings</div></div>
+      <div class="stat-card"><div class="stat-val" id="dUptime">0s</div><div class="stat-lbl">Session Uptime</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="overlay" id="configOverlay">
+  <div class="modal">
+    <div class="modal-title">⚙ FIREBASE CONFIGURATION</div>
+    <div class="form-group"><label>Database URL</label><input id="cfgUrl" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>
+    <div class="form-group"><label>Database Secret</label><input type="password" id="cfgSecret" placeholder="Your database secret key"></div>
+    <div class="modal-btns">
+      <button class="btn-primary" onclick="saveConfig()">SAVE &amp; CONNECT</button>
+      <button class="btn-secondary" onclick="closeConfig()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD METER MODAL -->
+<div class="overlay" id="addMeterOverlay">
+  <div class="modal">
+    <div class="modal-title">＋ ADD NEW METER</div>
+    <div class="form-group"><label>Meter ID</label><input id="newMeterId" placeholder="e.g. meter_004"></div>
+    <div class="form-group"><label>Address / Location</label><input id="newMeterAddr" placeholder="e.g. 12 Main Street, Harare"></div>
+    <div class="form-group"><label>Customer Name</label><input id="newMeterName" placeholder="e.g. John Doe"></div>
+    <div class="modal-btns">
+      <button class="btn-primary" onclick="addMeter()">ADD METER</button>
+      <button class="btn-secondary" onclick="closeAddMeter()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let CFG={url:localStorage.getItem('em_url')||'',secret:localStorage.getItem('em_secret')||''};
+let meters=JSON.parse(localStorage.getItem('em_meters')||'null')||[
+  {id:'meter_001',address:'5627 Retreat Township',customer:'Customer A',path:'/meter_001/prediction'},
+  {id:'meter_002',address:'14 Borrowdale Road, Harare',customer:'Customer B',path:'/meter_002/prediction'},
+  {id:'meter_003',address:'Flat 7, Avondale Complex',customer:'Customer C',path:'/meter_003/prediction'}
+];
+let meterState={};
+meters.forEach(m=>{meterState[m.id]={status:'loading',confidence:0,voltage:0,current:0,power:0,normalCount:0,fraudCount:0,totalCount:0,alerts:[],lastStatus:null,voltData:[],currData:[],chartLabels:[],fraudStart:null,sessionStart:Date.now()};});
+let activeMeter=null,detailChart=null;
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-GB');updateUptime();}
+setInterval(tick,1000);tick();
+
+function updateUptime(){
+  if(!activeMeter)return;
+  const s=meterState[activeMeter];
+  const sec=Math.floor((Date.now()-s.sessionStart)/1000);
+  const m=Math.floor(sec/60),ss=sec%60;
+  document.getElementById('dUptime').textContent=m>0?`${m}m ${ss}s`:`${ss}s`;
+}
+
+async function fetchMeter(meter){
+  if(!CFG.url||!CFG.secret)return null;
+  try{const res=await fetch(`${CFG.url}${meter.path}.json?auth=${CFG.secret}`);if(!res.ok)return null;return await res.json();}catch(e){return null;}
+}
+
+function simulateMeter(id){
+  const r=(a,b)=>Math.random()*(b-a)+a;
+  const cycle=Math.floor(Date.now()/15000)%3;
+  if(id==='meter_002')return{status:'NORMAL',confidence:r(97,100),voltage:r(11.5,12.1),current:r(0.07,0.10),power:r(0.85,1.2)};
+  if(id==='meter_003'){
+    if(cycle===0)return{status:'NORMAL',confidence:r(96,100),voltage:r(11.5,12.1),current:r(0.06,0.09),power:r(0.7,1.1)};
+    if(cycle===1)return{status:'FRAUD',confidence:r(95,99),voltage:r(11.5,12.0),current:0,power:0};
+    return{status:'NO_POWER',confidence:r(98,100),voltage:r(3.5,3.8),current:0,power:0};
+  }
+  return null;
+}
+
+async function refreshAll(){
+  for(const meter of meters){
+    let data=await fetchMeter(meter);
+    if(!data&&(meter.id==='meter_002'||meter.id==='meter_003'))data=simulateMeter(meter.id);
+    if(data)processMeterData(meter.id,data);
+  }
+  renderSidebar();renderOverviewCards();renderSummaryBar();
+  if(activeMeter)renderDetail(activeMeter);
+}
+
+function processMeterData(mid,data){
+  const s=meterState[mid];
+  const status=(data.status||'UNKNOWN').toUpperCase();
+  s.status=status.toLowerCase().replace('_','-');
+  s.confidence=data.confidence||0;s.voltage=data.voltage||0;s.current=data.current||0;s.power=data.power||0;
+  s.totalCount++;if(status==='NORMAL')s.normalCount++;if(status==='FRAUD')s.fraudCount++;
+  if(status==='FRAUD'&&!s.fraudStart)s.fraudStart=Date.now();
+  if(status!=='FRAUD')s.fraudStart=null;
+  if(status!==s.lastStatus){
+    const icon=status==='NORMAL'?'✅':status==='FRAUD'?'⚠️':'🔌';
+    const msg=status==='FRAUD'?'Meter bypass detected — theft suspected':status==='NORMAL'?'System operating normally':'Power supply disconnected';
+    s.alerts.unshift({status,icon,msg,time:new Date().toLocaleTimeString('en-GB'),conf:s.confidence});
+    if(s.alerts.length>50)s.alerts.pop();s.lastStatus=status;
+  }
+  const tl=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  s.chartLabels.push(tl);s.voltData.push(parseFloat(s.voltage.toFixed(3)));s.currData.push(parseFloat((s.current*100).toFixed(2)));
+  if(s.chartLabels.length>20){s.chartLabels.shift();s.voltData.shift();s.currData.shift();}
+}
+
+function renderSidebar(){
+  const list=document.getElementById('meterList');list.innerHTML='';
+  meters.forEach(m=>{
+    const s=meterState[m.id];const cls=s.status||'loading';
+    const badge=cls==='no-power'?'NO PWR':cls.toUpperCase();
+    const div=document.createElement('div');
+    div.className=`meter-item${activeMeter===m.id?' active':''}`;div.onclick=()=>showDetail(m.id);
+    div.innerHTML=`<div class="meter-dot ${cls}"></div><div class="meter-info"><div class="meter-id">${m.id.toUpperCase()}</div><div class="meter-addr">${m.address}</div></div><div class="meter-badge ${cls}">${badge}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function renderSummaryBar(){
+  const st=Object.values(meterState);
+  document.getElementById('sumTotal').textContent=meters.length;
+  document.getElementById('sumNormal').textContent=st.filter(s=>s.status==='normal').length;
+  document.getElementById('sumFraud').textContent=st.filter(s=>s.status==='fraud').length;
+  document.getElementById('sumOffline').textContent=st.filter(s=>s.status==='no-power').length;
+}
+
+function renderOverviewCards(){
+  const grid=document.getElementById('meterGrid');grid.innerHTML='';
+  meters.forEach(m=>{
+    const s=meterState[m.id];const cls=s.status||'loading';
+    const badge=cls==='no-power'?'NO POWER':cls==='loading'?'CONNECTING':cls.toUpperCase();
+    const icon=cls==='normal'?'✅':cls==='fraud'?'⚠️':cls==='no-power'?'🔌':'⏳';
+    const div=document.createElement('div');
+    div.className=`meter-card${cls==='fraud'?' fraud-card':''}`;div.onclick=()=>showDetail(m.id);
+    div.innerHTML=`<div class="card-top"><div><div class="card-meter-id">${m.id.toUpperCase()} ${icon}</div><div class="card-address">📍 ${m.address}</div><div class="card-address" style="margin-top:2px">👤 ${m.customer}</div></div><div class="card-status-badge ${cls}">${badge}</div></div><div class="card-metrics"><div><div class="card-metric-val">${s.voltage.toFixed(2)}V</div><div class="card-metric-lbl">Voltage</div></div><div><div class="card-metric-val">${s.current.toFixed(4)}A</div><div class="card-metric-lbl">Current</div></div><div><div class="card-metric-val">${s.power.toFixed(2)}W</div><div class="card-metric-lbl">Power</div></div></div><div class="card-footer"><div class="card-footer-left">Confidence: ${s.confidence.toFixed(1)}% | Alerts: ${s.alerts.length}</div><div class="card-view-btn">View Report →</div></div>`;
+    grid.appendChild(div);
+  });
+}
+
+function showDetail(mid){
+  activeMeter=mid;const meter=meters.find(m=>m.id===mid);
+  document.getElementById('detailMeterId').textContent=mid.toUpperCase();
+  document.getElementById('detailAddress').textContent=`📍 ${meter.address} — 👤 ${meter.customer}`;
+  document.getElementById('overviewPage').classList.remove('active');
+  document.getElementById('detailPage').classList.add('active');
+  document.getElementById('pageTitle').textContent='METER REPORT';
+  document.getElementById('breadcrumb').textContent=`Overview / ${mid.toUpperCase()}`;
+  if(detailChart)detailChart.destroy();
+  const ctx=document.getElementById('detailChart').getContext('2d');
+  detailChart=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'Voltage (V)',data:[],borderColor:'#ffaa00',backgroundColor:'rgba(255,170,0,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#ffaa00',tension:0.4,yAxisID:'y'},{label:'Current x100',data:[],borderColor:'#00c8ff',backgroundColor:'rgba(0,200,255,0.08)',borderWidth:2,pointRadius:3,pointBackgroundColor:'#00c8ff',tension:0.4,yAxisID:'y'}]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{labels:{color:'#334455',font:{family:'Exo 2',size:11},boxWidth:10}}},scales:{x:{ticks:{color:'#334455',font:{family:'Share Tech Mono',size:10},maxTicksLimit:6},grid:{color:'rgba(17,34,51,0.8)'}},y:{ticks:{color:'#334455',font:{family:'Share Tech Mono',size:10}},grid:{color:'rgba(17,34,51,0.8)'}}}}});
+  renderDetail(mid);renderSidebar();
+}
+
+function showOverview(){
+  activeMeter=null;
+  document.getElementById('detailPage').classList.remove('active');
+  document.getElementById('overviewPage').classList.add('active');
+  document.getElementById('pageTitle').textContent='OVERVIEW';
+  document.getElementById('breadcrumb').textContent='All Meters';
+  if(detailChart){detailChart.destroy();detailChart=null;}
+  renderSidebar();
+}
+
+function renderDetail(mid){
+  const s=meterState[mid];const cls=s.status||'loading';
+  const banner=document.getElementById('detailBanner');
+  banner.className=`detail-banner ${cls}`;
+  let icon,label,desc;
+  if(cls==='normal'){icon='✅';label='NORMAL';desc='Meter operating correctly — no tampering detected';}
+  else if(cls==='fraud'){icon='⚠️';label='FRAUD DETECTED';desc='Meter bypass suspected — voltage present, no current flow';}
+  else if(cls==='no-power'){icon='🔌';label='NO POWER';desc='Supply is off — no voltage detected';}
+  else{icon='⏳';label='CONNECTING';desc='Fetching live data from Firebase...';}
+  document.getElementById('detailIcon').textContent=icon;
+  document.getElementById('detailStatus').textContent=label;
+  document.getElementById('detailDesc').textContent=desc;
+  document.getElementById('detailConf').textContent=s.confidence.toFixed(1)+'%';
+  document.getElementById('dVolt').textContent=s.voltage.toFixed(3);
+  document.getElementById('dCurr').textContent=s.current.toFixed(4);
+  document.getElementById('dPow').textContent=s.power.toFixed(2);
+  document.getElementById('dVoltBar').style.width=Math.min((s.voltage/15)*100,100)+'%';
+  document.getElementById('dCurrBar').style.width=Math.min((s.current/0.15)*100,100)+'%';
+  document.getElementById('dPowBar').style.width=Math.min((s.power/2)*100,100)+'%';
+  document.getElementById('dNormal').textContent=s.normalCount;
+  document.getElementById('dFraud').textContent=s.fraudCount;
+  document.getElementById('dTotal').textContent=s.totalCount;
+  const timerEl=document.getElementById('fraudTimer');
+  if(cls==='fraud'&&s.fraudStart){
+    timerEl.classList.remove('hidden');
+    const sec=Math.floor((Date.now()-s.fraudStart)/1000);
+    const mm=Math.floor(sec/60),ss=String(sec%60).padStart(2,'0');
+    document.getElementById('timerVal').textContent=`${mm}:${ss}`;
+  }else{timerEl.classList.add('hidden');}
+  if(detailChart){detailChart.data.labels=[...s.chartLabels];detailChart.data.datasets[0].data=[...s.voltData];detailChart.data.datasets[1].data=[...s.currData];detailChart.update();}
+  const alertDiv=document.getElementById('detailAlerts');
+  if(s.alerts.length===0){alertDiv.innerHTML='<div class="no-data">No events recorded yet</div>';}
+  else{alertDiv.innerHTML='';s.alerts.forEach(a=>{const c2=a.status==='FRAUD'?'fraud':a.status==='NORMAL'?'normal':'no-power';const d=document.createElement('div');d.className=`alert-row ${c2}`;d.innerHTML=`<div class="alert-ico">${a.icon}</div><div><div class="alert-status">${a.status} — ${a.conf.toFixed(1)}% confidence</div><div class="alert-time">${a.time} — ${a.msg}</div></div>`;alertDiv.appendChild(d);});}
+}
+
+function exportMeterCSV(){
+  if(!activeMeter)return;
+  const meter=meters.find(m=>m.id===activeMeter);const s=meterState[activeMeter];
+  let csv=`ElectroMonitor Report\nMeter ID:,${activeMeter.toUpperCase()}\nAddress:,"${meter.address}"\nCustomer:,${meter.customer}\nExported:,${new Date().toLocaleString()}\n\nTime,Event,Confidence,Message\n`;
+  s.alerts.forEach(a=>{csv+=`"${a.time}","${a.status}","${a.conf.toFixed(1)}%","${a.msg}"\n`;});
+  csv+=`\nSession Summary\nNormal:,${s.normalCount}\nFraud Events:,${s.fraudCount}\nTotal Readings:,${s.totalCount}\n`;
+  downloadCSV(csv,`${activeMeter}_report_${Date.now()}.csv`);
+}
+
+function exportAllCSV(){
+  let csv=`ElectroMonitor — All Meters Report\nExported:,${new Date().toLocaleString()}\n\n`;
+  meters.forEach(m=>{const s=meterState[m.id];csv+=`\nMeter:,${m.id.toUpperCase()}\nAddress:,"${m.address}"\nCustomer:,${m.customer}\nStatus:,${s.status.toUpperCase()}\nFraud Events:,${s.fraudCount}\nTotal Readings:,${s.totalCount}\n\nTime,Event,Confidence,Message\n`;s.alerts.forEach(a=>{csv+=`"${a.time}","${a.status}","${a.conf.toFixed(1)}%","${a.msg}"\n`;});csv+='\n';});
+  downloadCSV(csv,`electromonitor_all_${Date.now()}.csv`);
+}
+
+function downloadCSV(csv,fn){const b=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();}
+
+function openAddMeter(){document.getElementById('addMeterOverlay').classList.add('open');}
+function closeAddMeter(){document.getElementById('addMeterOverlay').classList.remove('open');}
+function addMeter(){
+  const id=document.getElementById('newMeterId').value.trim().toLowerCase().replace(/\s+/g,'_');
+  const addr=document.getElementById('newMeterAddr').value.trim();
+  const name=document.getElementById('newMeterName').value.trim();
+  if(!id||!addr||!name){alert('Please fill all fields.');return;}
+  if(meters.find(m=>m.id===id)){alert('Meter ID already exists.');return;}
+  meters.push({id,address:addr,customer:name,path:`/${id}/prediction`});
+  meterState[id]={status:'loading',confidence:0,voltage:0,current:0,power:0,normalCount:0,fraudCount:0,totalCount:0,alerts:[],lastStatus:null,voltData:[],currData:[],chartLabels:[],fraudStart:null,sessionStart:Date.now()};
+  localStorage.setItem('em_meters',JSON.stringify(meters));
+  closeAddMeter();
+  ['newMeterId','newMeterAddr','newMeterName'].forEach(id=>document.getElementById(id).value='');
+  renderSidebar();renderOverviewCards();renderSummaryBar();
+}
+
+function openConfig(){document.getElementById('cfgUrl').value=CFG.url;document.getElementById('cfgSecret').value=CFG.secret;document.getElementById('configOverlay').classList.add('open');}
+function closeConfig(){document.getElementById('configOverlay').classList.remove('open');}
+function saveConfig(){
+  CFG.url=document.getElementById('cfgUrl').value.trim();
+  CFG.secret=document.getElementById('cfgSecret').value.trim();
+  localStorage.setItem('em_url',CFG.url);localStorage.setItem('em_secret',CFG.secret);
+  closeConfig();refreshAll();setInterval(refreshAll,3000);
+}
+
+document.getElementById('configOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('configOverlay'))closeConfig();});
+document.getElementById('addMeterOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('addMeterOverlay'))closeAddMeter();});
+
+if(!CFG.url||!CFG.secret){openConfig();}else{refreshAll();setInterval(refreshAll,3000);}
+</script>
+</body>
+</html>
