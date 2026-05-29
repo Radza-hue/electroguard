@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElectroGuard — Fraud Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #050a0e;
+    --panel:     #0a1520;
+    --border:    #0d2436;
+    --accent:    #00e5ff;
+    --green:     #00ff88;
+    --red:       #ff2d55;
+    --orange:    #ff9500;
+    --grey:      #4a5568;
+    --text:      #c8d8e8;
+    --dim:       #4a6a7a;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrapper { position:relative; z-index:1; max-width:1400px; margin:0 auto; padding:24px; }
+
+  /* ── Header ── */
+  header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom:20px;
+    margin-bottom:28px;
+  }
+
+  .logo {
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .logo-icon {
+    width:44px; height:44px;
+    border:2px solid var(--accent);
+    border-radius:8px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+    box-shadow: 0 0 16px rgba(0,229,255,0.3);
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 16px rgba(0,229,255,0.3); }
+    50%      { box-shadow: 0 0 28px rgba(0,229,255,0.6); }
+  }
+
+  .logo h1 {
+    font-family:'Orbitron', monospace;
+    font-size:22px;
+    font-weight:900;
+    color:#fff;
+    letter-spacing:2px;
+  }
+
+  .logo p {
+    font-size:12px;
+    color:var(--dim);
+    letter-spacing:3px;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+
+  .header-right {
+    display:flex;
+    align-items:center;
+    gap:20px;
+  }
+
+  .live-badge {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background: rgba(0,255,136,0.08);
+    border:1px solid rgba(0,255,136,0.2);
+    border-radius:20px;
+    padding:6px 14px;
+    font-family:'Share Tech Mono', monospace;
+    font-size:13px;
+    color:var(--green);
+  }
+
+  .live-dot {
+    width:8px; height:8px;
+    border-radius:50%;
+    background:var(--green);
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity:1; }
+    50%      { opacity:0.2; }
+  }
+
+  .clock {
+    font-family:'Share Tech Mono', monospace;
+    font-size:13px;
+    color:var(--dim);
+  }
+
+  /* ── Status Banner ── */
+  .status-banner {
+    border-radius:12px;
+    padding:28px 32px;
+    margin-bottom:24px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    transition: all 0.5s ease;
+    border:2px solid;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .status-banner::before {
+    content:'';
+    position:absolute;
+    inset:0;
+    opacity:0.06;
+    background: repeating-linear-gradient(
+      45deg,
+      currentColor,
+      currentColor 1px,
+      transparent 1px,
+      transparent 10px
+    );
+  }
+
+  .status-banner.normal {
+    background: rgba(0,255,136,0.06);
+    border-color: rgba(0,255,136,0.4);
+    color: var(--green);
+  }
+
+  .status-banner.fraud {
+    background: rgba(255,45,85,0.08);
+    border-color: rgba(255,45,85,0.6);
+    color: var(--red);
+    animation: fraud-pulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes fraud-pulse {
+    0%,100% { box-shadow: 0 0 20px rgba(255,45,85,0.2); }
+    50%      { box-shadow: 0 0 50px rgba(255,45,85,0.5); }
+  }
+
+  .status-banner.no-power {
+    background: rgba(74,101,120,0.1);
+    border-color: rgba(74,101,120,0.4);
+    color: var(--grey);
+  }
+
+  .status-banner.loading {
+    background: rgba(0,229,255,0.04);
+    border-color: rgba(0,229,255,0.2);
+    color: var(--accent);
+  }
+
+  .status-left { display:flex; align-items:center; gap:20px; }
+
+  .status-icon { font-size:48px; line-height:1; }
+
+  .status-label {
+    font-family:'Orbitron', monospace;
+    font-size:32px;
+    font-weight:900;
+    letter-spacing:3px;
+  }
+
+  .status-sub {
+    font-size:14px;
+    opacity:0.7;
+    margin-top:4px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+  }
+
+  .status-confidence {
+    text-align:right;
+  }
+
+  .confidence-value {
+    font-family:'Orbitron', monospace;
+    font-size:42px;
+    font-weight:900;
+    line-height:1;
+  }
+
+  .confidence-label {
+    font-size:12px;
+    opacity:0.6;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+
+  /* ── Metric Cards ── */
+  .metrics-row {
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:16px;
+    margin-bottom:24px;
+  }
+
+  .metric-card {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 24px;
+    position:relative;
+    overflow:hidden;
+    transition: border-color 0.3s;
+  }
+
+  .metric-card::after {
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height:2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:0.5;
+  }
+
+  .metric-card:nth-child(1)::after { background: linear-gradient(90deg, transparent, #ff9500, transparent); }
+  .metric-card:nth-child(2)::after { background: linear-gradient(90deg, transparent, #00e5ff, transparent); }
+  .metric-card:nth-child(3)::after { background: linear-gradient(90deg, transparent, #00ff88, transparent); }
+
+  .metric-label {
+    font-size:11px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-bottom:10px;
+  }
+
+  .metric-value {
+    font-family:'Orbitron', monospace;
+    font-size:36px;
+    font-weight:700;
+    color:#fff;
+    line-height:1;
+  }
+
+  .metric-unit {
+    font-family:'Share Tech Mono', monospace;
+    font-size:14px;
+    color:var(--dim);
+    margin-left:4px;
+  }
+
+  .metric-bar {
+    margin-top:12px;
+    height:3px;
+    background:var(--border);
+    border-radius:2px;
+    overflow:hidden;
+  }
+
+  .metric-bar-fill {
+    height:100%;
+    border-radius:2px;
+    transition: width 0.8s ease;
+  }
+
+  .metric-card:nth-child(1) .metric-bar-fill { background:#ff9500; }
+  .metric-card:nth-child(2) .metric-bar-fill { background:#00e5ff; }
+  .metric-card:nth-child(3) .metric-bar-fill { background:#00ff88; }
+
+  /* ── Bottom Grid ── */
+  .bottom-grid {
+    display:grid;
+    grid-template-columns: 1fr 380px;
+    gap:16px;
+  }
+
+  .panel {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:22px 24px;
+  }
+
+  .panel-title {
+    font-family:'Orbitron', monospace;
+    font-size:11px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .panel-title::after {
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--border);
+  }
+
+  /* ── Chart ── */
+  .chart-wrap {
+    position:relative;
+    height:240px;
+  }
+
+  /* ── Alert Log ── */
+  .alert-log {
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:280px;
+    overflow-y:auto;
+  }
+
+  .alert-log::-webkit-scrollbar { width:4px; }
+  .alert-log::-webkit-scrollbar-track { background:var(--border); }
+  .alert-log::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+
+  .alert-item {
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:6px;
+    border-left:3px solid;
+    background:rgba(255,255,255,0.02);
+    animation: slide-in 0.3s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity:0; transform:translateX(-10px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+
+  .alert-item.fraud  { border-color:var(--red);   background:rgba(255,45,85,0.06); }
+  .alert-item.normal { border-color:var(--green);  background:rgba(0,255,136,0.04); }
+  .alert-item.no-power { border-color:var(--grey); background:rgba(74,101,120,0.06); }
+
+  .alert-icon { font-size:16px; margin-top:1px; }
+
+  .alert-text { flex:1; }
+  .alert-status {
+    font-weight:700;
+    font-size:13px;
+    letter-spacing:1px;
+  }
+  .alert-time {
+    font-family:'Share Tech Mono', monospace;
+    font-size:11px;
+    color:var(--dim);
+    margin-top:2px;
+  }
+
+  .no-alerts {
+    text-align:center;
+    color:var(--dim);
+    font-size:13px;
+    padding:40px 0;
+    letter-spacing:1px;
+  }
+
+  /* ── Footer ── */
+  .footer-stats {
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:12px;
+    margin-top:16px;
+  }
+
+  .stat-box {
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:14px 16px;
+    text-align:center;
+  }
+
+  .stat-value {
+    font-family:'Orbitron', monospace;
+    font-size:22px;
+    font-weight:700;
+    color:#fff;
+  }
+
+  .stat-label {
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-top:4px;
+  }
+
+  .stat-box.danger .stat-value { color:var(--red); }
+  .stat-box.safe   .stat-value { color:var(--green); }
+
+  /* ── Config Modal ── */
+  .config-btn {
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--dim);
+    padding:8px 16px;
+    border-radius:6px;
+    cursor:pointer;
+    font-family:'Rajdhani', sans-serif;
+    font-size:13px;
+    letter-spacing:1px;
+    transition: all 0.2s;
+  }
+
+  .config-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .modal-overlay {
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.8);
+    z-index:100;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .modal-overlay.open { display:flex; }
+
+  .modal {
+    background:#0d1f2d;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:32px;
+    width:480px;
+    max-width:90vw;
+  }
+
+  .modal h2 {
+    font-family:'Orbitron', monospace;
+    font-size:16px;
+    letter-spacing:2px;
+    margin-bottom:24px;
+    color:#fff;
+  }
+
+  .form-group { margin-bottom:16px; }
+
+  .form-group label {
+    display:block;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin-bottom:6px;
+  }
+
+  .form-group input {
+    width:100%;
+    background:#050a0e;
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:10px 14px;
+    color:#fff;
+    font-family:'Share Tech Mono', monospace;
+    font-size:13px;
+    outline:none;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input:focus { border-color:var(--accent); }
+
+  .modal-btns { display:flex; gap:10px; margin-top:24px; }
+
+  .btn-save {
+    flex:1;
+    background:var(--accent);
+    color:#000;
+    border:none;
+    border-radius:6px;
+    padding:12px;
+    font-family:'Rajdhani', sans-serif;
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:2px;
+    cursor:pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-save:hover { opacity:0.85; }
+
+  .btn-cancel {
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--dim);
+    border-radius:6px;
+    padding:12px 20px;
+    font-family:'Rajdhani', sans-serif;
+    font-size:14px;
+    cursor:pointer;
+  }
+
+  /* ── Responsive ── */
+  @media(max-width:900px) {
+    .metrics-row { grid-template-columns:1fr; }
+    .bottom-grid { grid-template-columns:1fr; }
+    .footer-stats { grid-template-columns:repeat(2,1fr); }
+    .status-banner { flex-direction:column; gap:16px; text-align:center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <h1>ELECTROGUARD</h1>
+        <p>IoT Electricity Fraud Detection System</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        LIVE MONITORING
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+      <button class="config-btn" onclick="openConfig()">⚙ CONFIG</button>
+    </div>
+  </header>
+
+  <!-- Status Banner -->
+  <div class="status-banner loading" id="statusBanner">
+    <div class="status-left">
+      <div class="status-icon" id="statusIcon">⏳</div>
+      <div>
+        <div class="status-label" id="statusLabel">CONNECTING</div>
+        <div class="status-sub" id="statusSub">Fetching data from Firebase...</div>
+      </div>
+    </div>
+    <div class="status-confidence">
+      <div class="confidence-value" id="confidenceValue">--</div>
+      <div class="confidence-label">Confidence</div>
+    </div>
+  </div>
+
+  <!-- Metric Cards -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Voltage</div>
+      <div>
+        <span class="metric-value" id="voltageVal">--.-</span>
+        <span class="metric-unit">V</span>
+      </div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="voltageBar" style="width:0%"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Current</div>
+      <div>
+        <span class="metric-value" id="currentVal">-.----</span>
+        <span class="metric-unit">A</span>
+      </div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="currentBar" style="width:0%"></div></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Power</div>
+      <div>
+        <span class="metric-value" id="powerVal">-.--</span>
+        <span class="metric-unit">W</span>
+      </div>
+      <div class="metric-bar"><div class="metric-bar-fill" id="powerBar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Chart + Alert Log -->
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-title">Live Readings — Last 20 samples</div>
+      <div class="chart-wrap">
+        <canvas id="liveChart"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Alert Log</div>
+      <div class="alert-log" id="alertLog">
+        <div class="no-alerts">No events recorded yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Session Stats -->
+  <div class="footer-stats">
+    <div class="stat-box safe">
+      <div class="stat-value" id="normalCount">0</div>
+      <div class="stat-label">Normal Readings</div>
+    </div>
+    <div class="stat-box danger">
+      <div class="stat-value" id="fraudCount">0</div>
+      <div class="stat-label">Fraud Detected</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="totalCount">0</div>
+      <div class="stat-label">Total Readings</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value" id="uptimeVal">0s</div>
+      <div class="stat-label">Session Uptime</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Config Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>⚙ FIREBASE CONFIG</h2>
+    <div class="form-group">
+      <label>Database URL</label>
+      <input type="text" id="cfgUrl" placeholder="https://your-project-default-rtdb.firebaseio.com">
+    </div>
+    <div class="form-group">
+      <label>Database Secret</label>
+      <input type="password" id="cfgSecret" placeholder="Your database secret key">
+    </div>
+    <div class="form-group">
+      <label>Meter Path</label>
+      <input type="text" id="cfgPath" placeholder="/meter_001/prediction" value="/meter_001/prediction">
+    </div>
+    <div class="modal-btns">
+      <button class="btn-save" onclick="saveConfig()">SAVE &amp; CONNECT</button>
+      <button class="btn-cancel" onclick="closeConfig()">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────
+let CONFIG = {
+  url:    localStorage.getItem('fg_url')    || '',
+  secret: localStorage.getItem('fg_secret') || '',
+  path:   localStorage.getItem('fg_path')   || '/meter_001/prediction'
+};
+
+// ── State ────────────────────────────────────────────────────
+let normalCount = 0, fraudCount = 0, totalCount = 0;
+let sessionStart = Date.now();
+let lastStatus = null;
+let alertItems = [];
+const MAX_POINTS = 20;
+let voltageData = [], currentData = [], labels = [];
+
+// ── Clock ────────────────────────────────────────────────────
+function updateClock() {
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('en-GB');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Chart setup ──────────────────────────────────────────────
+const ctx = document.getElementById('liveChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [
+      {
+        label: 'Voltage (V)',
+        data: [],
+        borderColor: '#ff9500',
+        backgroundColor: 'rgba(255,149,0,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#ff9500',
+        tension: 0.4,
+        yAxisID: 'yV'
+      },
+      {
+        label: 'Current (A×100)',
+        data: [],
+        borderColor: '#00e5ff',
+        backgroundColor: 'rgba(0,229,255,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#00e5ff',
+        tension: 0.4,
+        yAxisID: 'yV'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 400 },
+    plugins: {
+      legend: {
+        labels: {
+          color: '#4a6a7a',
+          font: { family: 'Rajdhani', size: 12 },
+          boxWidth: 12
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#4a6a7a', font: { family: 'Share Tech Mono', size: 10 }, maxTicksLimit: 8 },
+        grid:  { color: 'rgba(13,36,54,0.8)' }
+      },
+      yV: {
+        ticks: { color: '#4a6a7a', font: { family: 'Share Tech Mono', size: 10 } },
+        grid:  { color: 'rgba(13,36,54,0.8)' }
+      }
+    }
+  }
+});
+
+// ── Update UI ────────────────────────────────────────────────
+function updateUI(data) {
+  const status     = (data.status     || 'UNKNOWN').toUpperCase();
+  const confidence = data.confidence  || 0;
+  const voltage    = data.voltage     || 0;
+  const current    = data.current     || 0;
+  const power      = data.power       || 0;
+
+  // Metrics
+  document.getElementById('voltageVal').textContent = voltage.toFixed(3);
+  document.getElementById('currentVal').textContent = current.toFixed(4);
+  document.getElementById('powerVal').textContent   = power.toFixed(2);
+  document.getElementById('voltageBar').style.width  = Math.min((voltage / 15) * 100, 100) + '%';
+  document.getElementById('currentBar').style.width  = Math.min((current / 0.15) * 100, 100) + '%';
+  document.getElementById('powerBar').style.width    = Math.min((power / 2) * 100, 100) + '%';
+
+  // Confidence
+  document.getElementById('confidenceValue').textContent = confidence.toFixed(1) + '%';
+
+  // Status banner
+  const banner = document.getElementById('statusBanner');
+  banner.className = 'status-banner ';
+  let icon, label, sub;
+
+  if (status === 'NORMAL') {
+    banner.className += 'normal';
+    icon  = '✅';
+    label = 'NORMAL';
+    sub   = 'Meter operating correctly — no tampering detected';
+  } else if (status === 'FRAUD') {
+    banner.className += 'fraud';
+    icon  = '⚠️';
+    label = 'FRAUD DETECTED';
+    sub   = 'Meter bypass suspected — voltage present, no current flow';
+  } else if (status === 'NO_POWER') {
+    banner.className += 'no-power';
+    icon  = '🔌';
+    label = 'NO POWER';
+    sub   = 'Supply is off — no voltage detected';
+  } else {
+    banner.className += 'loading';
+    icon  = '⏳';
+    label = status;
+    sub   = 'Analysing...';
+  }
+
+  document.getElementById('statusIcon').textContent  = icon;
+  document.getElementById('statusLabel').textContent = label;
+  document.getElementById('statusSub').textContent   = sub;
+
+  // Counters
+  totalCount++;
+  if (status === 'NORMAL') normalCount++;
+  if (status === 'FRAUD')  fraudCount++;
+  document.getElementById('normalCount').textContent = normalCount;
+  document.getElementById('fraudCount').textContent  = fraudCount;
+  document.getElementById('totalCount').textContent  = totalCount;
+
+  // Uptime
+  const secs = Math.floor((Date.now() - sessionStart) / 1000);
+  const m = Math.floor(secs / 60), s = secs % 60;
+  document.getElementById('uptimeVal').textContent = m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+  // Alert log — only log on state change
+  if (status !== lastStatus) {
+    addAlert(status, icon, confidence);
+    lastStatus = status;
+  }
+
+  // Chart
+  const timeLabel = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  labels.push(timeLabel);
+  voltageData.push(parseFloat(voltage.toFixed(3)));
+  currentData.push(parseFloat((current * 100).toFixed(2)));
+
+  if (labels.length > MAX_POINTS) {
+    labels.shift();
+    voltageData.shift();
+    currentData.shift();
+  }
+
+  chart.data.labels          = [...labels];
+  chart.data.datasets[0].data = [...voltageData];
+  chart.data.datasets[1].data = [...currentData];
+  chart.update();
+}
+
+// ── Alert Log ────────────────────────────────────────────────
+function addAlert(status, icon, confidence) {
+  const log = document.getElementById('alertLog');
+  const noAlerts = log.querySelector('.no-alerts');
+  if (noAlerts) noAlerts.remove();
+
+  const time = new Date().toLocaleTimeString('en-GB');
+  const cls  = status === 'FRAUD' ? 'fraud' : status === 'NORMAL' ? 'normal' : 'no-power';
+  const msg  = status === 'FRAUD'    ? 'Meter bypass detected — theft suspected'
+             : status === 'NORMAL'   ? 'System operating normally'
+             : status === 'NO_POWER' ? 'Power supply disconnected'
+             : 'Unknown state';
+
+  const item = document.createElement('div');
+  item.className = `alert-item ${cls}`;
+  item.innerHTML = `
+    <div class="alert-icon">${icon}</div>
+    <div class="alert-text">
+      <div class="alert-status">${status}</div>
+      <div class="alert-time">${time} — ${msg} (${confidence.toFixed(1)}%)</div>
+    </div>
+  `;
+
+  log.insertBefore(item, log.firstChild);
+
+  // Keep max 20 items
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ── Fetch from Firebase ──────────────────────────────────────
+async function fetchData() {
+  if (!CONFIG.url || !CONFIG.secret) return;
+
+  try {
+    const url = `${CONFIG.url}${CONFIG.path}.json?auth=${CONFIG.secret}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data) updateUI(data);
+  } catch (err) {
+    console.error('Fetch error:', err);
+  }
+}
+
+// ── Config Modal ─────────────────────────────────────────────
+function openConfig() {
+  document.getElementById('cfgUrl').value    = CONFIG.url;
+  document.getElementById('cfgSecret').value = CONFIG.secret;
+  document.getElementById('cfgPath').value   = CONFIG.path;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeConfig() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function saveConfig() {
+  CONFIG.url    = document.getElementById('cfgUrl').value.trim();
+  CONFIG.secret = document.getElementById('cfgSecret').value.trim();
+  CONFIG.path   = document.getElementById('cfgPath').value.trim();
+  localStorage.setItem('fg_url',    CONFIG.url);
+  localStorage.setItem('fg_secret', CONFIG.secret);
+  localStorage.setItem('fg_path',   CONFIG.path);
+  closeConfig();
+  fetchData();
+}
+
+// ── Start ────────────────────────────────────────────────────
+if (!CONFIG.url || !CONFIG.secret) {
+  openConfig();
+} else {
+  fetchData();
+  setInterval(fetchData, 3000);
+}
+</script>
+</body>
+</html>
