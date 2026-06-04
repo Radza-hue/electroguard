@@ -409,7 +409,7 @@ let CFG={url:localStorage.getItem('em_url')||'',secret:localStorage.getItem('em_
 // ══ METERS ═════════════════════════════════════════════════
 // meter_001 is real (ESP32). meter_002 and meter_003 are demo — no real data.
 let meters=JSON.parse(localStorage.getItem('em_meters')||'null')||[
-  {id:'meter_001',address:'5627 Retreat Township',customer:'Customer A',path:'/meter_001/prediction',real:true,url:'',secret:''},
+  {id:'meter_001',address:'5627 Retreat Township',customer:'Customer A',path:'/meter_001/live',real:true,url:'https://iot-electricity-monitoring-default-rtdb.firebaseio.com',secret:'3Svj7zfbxmw1sKEbhvgSwdS6LgO3M42Jt5OsroUj'},
   {id:'meter_002',address:'14 Borrowdale Road, Harare',customer:'Customer B',path:'/meter_002/prediction',real:false,url:'',secret:''},
   {id:'meter_003',address:'Flat 7, Avondale Complex',customer:'Customer C',path:'/meter_003/prediction',real:false,url:'',secret:''}
 ];
@@ -468,9 +468,9 @@ async function refreshAll(){
 
 function processMeterData(mid,data){
   const s=meterState[mid];
-  const status=(data.status||'UNKNOWN').toUpperCase();
+  const status=(data.label||data.status||'UNKNOWN').toUpperCase();
   s.status=status.toLowerCase().replace('_','-');
-  s.confidence=data.confidence||0;s.voltage=data.voltage||0;s.current=data.current||0;s.power=data.power||0;
+  s.confidence=data.confidence||0;s.voltage=data.voltage||0;s.current=data.current_amps||data.current||0;s.power=data.power_watts||data.power||0;
   s.totalCount++;if(status==='NORMAL')s.normalCount++;if(status==='FRAUD')s.fraudCount++;
   if(status==='FRAUD'&&!s.fraudStart)s.fraudStart=Date.now();
   if(status!=='FRAUD')s.fraudStart=null;
